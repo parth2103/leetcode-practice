@@ -1,0 +1,60 @@
+name: Python Commit
+
+on:
+  schedule:
+    - cron: "0 11 * * *"  # Runs every day at 11:00 UTC (3:00 AM PST)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  python_commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Random chance to run
+        id: random_decision
+        run: |
+          # 70% chance to run, 30% chance to skip
+          CHANCE=$(( RANDOM % 10 ))
+          echo "Random chance value: $CHANCE"
+          if [ "$CHANCE" -lt 3 ]; then
+            echo "run_commit=false" >> $GITHUB_OUTPUT
+            echo "Skipping this run randomly."
+          else
+            echo "run_commit=true" >> $GITHUB_OUTPUT
+            echo "Proceeding with commit."
+          fi
+
+      - name: Pick a random Python file and modify it
+        if: steps.random_decision.outputs.run_commit == 'true'
+        run: |
+          PY_FILES=$(find . -type f -name "*.py" ! -path "./.git/*" ! -path "./.github/*")
+          if [ -z "$PY_FILES" ]; then
+            echo "No Python files found."
+            exit 0
+          fi
+
+          FILE=$(echo "$PY_FILES" | shuf -n 1)
+          BASENAME=$(basename "$FILE")
+          echo "Selected file: $FILE"
+
+          TMP_FILE=$(mktemp)
+          echo "# $BASENAME - touched by workflow" > "$TMP_FILE"
+          cat "$FILE" >> "$TMP_FILE"
+          mv "$TMP_FILE" "$FILE"
+
+      - name: Commit and push changes
+        if: steps.random_decision.outputs.run_commit == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          git config user.name "parth2103"
+          git config user.email "parth2103@gmail.com"
+          git add .
+          git commit -m "Automated daily touch" || echo "No changes to commit"
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/parth2103/leetcode-practice.git HEAD:main
