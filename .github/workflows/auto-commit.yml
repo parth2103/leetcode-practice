@@ -30,23 +30,29 @@ jobs:
             echo "Proceeding with commit."
           fi
 
-      - name: Pick a random Python file and modify it
+      - name: Update daily log
         if: steps.random_decision.outputs.run_commit == 'true'
         run: |
-          PY_FILES=$(find . -type f -name "*.py" ! -path "./.git/*" ! -path "./.github/*")
-          if [ -z "$PY_FILES" ]; then
-            echo "No Python files found."
-            exit 0
+          LOG_FILE=daily_log.md
+          DATE=$(date -u +"%Y-%m-%d")
+          TIME=$(date -u +"%H:%M:%S")
+          
+          MESSAGES=(
+            "Reviewed LeetCode problems"
+            "Studied algorithms and data structures"
+            "Practiced LeetCode questions"
+            "Small step forward on LeetCode"
+          )
+          
+          INDEX=$(( RANDOM % ${#MESSAGES[@]} ))
+          MESSAGE=${MESSAGES[$INDEX]}
+
+          if [ ! -f "$LOG_FILE" ]; then
+            echo "# Daily LeetCode Log" > "$LOG_FILE"
+            echo "" >> "$LOG_FILE"
           fi
 
-          FILE=$(echo "$PY_FILES" | shuf -n 1)
-          BASENAME=$(basename "$FILE")
-          echo "Selected file: $FILE"
-
-          TMP_FILE=$(mktemp)
-          echo "# $BASENAME - touched by workflow" > "$TMP_FILE"
-          cat "$FILE" >> "$TMP_FILE"
-          mv "$TMP_FILE" "$FILE"
+          echo "- ${DATE} ${TIME} UTC — ${MESSAGE}" >> "$LOG_FILE"
 
       - name: Commit and push changes
         if: steps.random_decision.outputs.run_commit == 'true'
@@ -56,5 +62,5 @@ jobs:
           git config user.name "parth2103"
           git config user.email "parth2103@gmail.com"
           git add .
-          git commit -m "Automated daily touch" || echo "No changes to commit"
+          git commit -m "Update daily LeetCode log" || echo "No changes to commit"
           git push https://x-access-token:${GITHUB_TOKEN}@github.com/parth2103/leetcode-practice.git HEAD:main
